@@ -57,7 +57,6 @@ describe('SYSTEM_BRIEF', () => {
   const headings = [
     '## Contexto',
     '## O que foi pedido',
-    '## Entregável esperado',
     '## Restrições e preferências ditas',
     '## Anexos',
     '## Lacunas',
@@ -69,16 +68,46 @@ describe('SYSTEM_BRIEF', () => {
     expect(SYSTEM_BRIEF).toContain('não informado');
   });
 
-  it('lista as 7 seções na ordem', () => {
+  it('lista as 6 seções na ordem', () => {
     const pos = headings.map((h) => SYSTEM_BRIEF.indexOf(h));
     for (const p of pos) expect(p).toBeGreaterThanOrEqual(0);
     expect([...pos].sort((a, b) => a - b)).toEqual(pos);
+  });
+
+  it('não tem mais a seção "Entregável esperado"', () => {
+    expect(SYSTEM_BRIEF).not.toContain('## Entregável esperado');
+  });
+
+  it('tem exatamente 6 títulos de seção', () => {
+    expect(SYSTEM_BRIEF.split('\n').filter((l) => l.startsWith('## ')).length).toBe(6);
+  });
+
+  it('"O que foi pedido" diz o que entregar e em que forma (a frase fica dentro dessa seção)', () => {
+    const i = SYSTEM_BRIEF.indexOf('diz o que entregar e em que forma');
+    expect(i).toBeGreaterThan(SYSTEM_BRIEF.indexOf('## O que foi pedido'));
+    expect(i).toBeLessThan(SYSTEM_BRIEF.indexOf('## Restrições e preferências ditas'));
+  });
+
+  it('perguntas só do que bloqueia, sem repetir Lacunas', () => {
+    expect(SYSTEM_BRIEF).toContain('só o que bloqueia a execução; não repita o que já está em Lacunas');
+  });
+
+  it('registra só a decisão vigente', () => {
+    expect(SYSTEM_BRIEF).toContain('Registre só a decisão vigente; não cite as versões anteriores que ela substituiu');
+  });
+
+  it('nunca escreve IDs numéricos de contato', () => {
+    expect(SYSTEM_BRIEF).toContain('Nunca escreva IDs numéricos de contato; use o nome, os apelidos "@participante-1", "@participante-2"… que vierem no texto, ou "participante não identificado"');
+  });
+
+  it('tem alvo de tamanho', () => {
+    expect(SYSTEM_BRIEF).toContain('Mire em até 600 palavras para trechos de até 200 mensagens; só passe disso se houver mais de 3 entregáveis distintos');
   });
 });
 
 
 /** Palavras capitalizadas permitidas fora de início de frase/linha/item: termos do domínio e o exemplo fictício. */
-const TERMOS_PERMITIDOS = new Set(['Eu', 'WhatsApp', 'Brasil', 'PDFs', 'DADOS', 'DADO', 'Markdown', 'Claude', 'Code', 'IA', 'NÃO', 'TRANSCRITO', 'AAAA', 'MM', 'DD', 'Pedro']);
+const TERMOS_PERMITIDOS = new Set(['Eu', 'WhatsApp', 'Brasil', 'PDFs', 'DADOS', 'DADO', 'Markdown', 'Claude', 'Code', 'IA', 'NÃO', 'TRANSCRITO', 'AAAA', 'MM', 'DD', 'Pedro', 'Lacunas', 'IDs']);
 
 /**
  * Palavras capitalizadas que não abrem frase, linha, item ou seção e não estão em TERMOS_PERMITIDOS

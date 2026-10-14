@@ -141,6 +141,70 @@ export function storeCollect(startId, endId, domIds, cap) {
     const allHex = new Set(all.map((/** @type {any} */ m) => (m.id && m.id.id) || ''));
     out.missingFromStore = (domIds || []).filter((d) => !allSer.has(d) && !allHex.has(hexOf(d)));
 
+    /*
+     * Menções em grupo (WA Web 2.3000.1050+): o texto traz "@<número do @lid>" cru. Resolve pra "@nome"
+     * na ordem: mentionedJidList → Contact.get(N@lid) → Contact.get(N@c.us) → participantes do grupo.
+     * Sem nome: apelido estável "@participante-K" (mesma pessoa, mesmo apelido no trecho todo).
+     * Nunca deixa o número cru no texto.
+     */
+    /** @param {any} c */
+    const nameOf = (c) => {
+      for (const k of ['name', 'pushname', 'notifyName', 'verifiedName', 'formattedName']) {
+        const v = c && c[k];
+        if (!v) continue;
+        const s = String(v);
+        // Nome que é só número/telefone (ex.: formattedName de contato desconhecido) vazaria o id: ignora.
+        // Tira caracteres de formatação invisíveis (U+202A…) antes de olhar; sem letra e com 6+ dígitos = telefone.
+        const bare = s.replace(/\p{Cf}/gu, '').trim();
+        if (!bare) continue;
+        const phoneLike = !/\p{L}/u.test(bare) && (bare.replace(/\D/g, '').length >= 6 || /^[\d\s+().-]+$/.test(bare));
+        if (!phoneLike) return s;
+      }
+      return '';
+    };
+    /** @param {any} jid */
+    const nameFromJid = (jid) => { try { return jid ? nameOf(Contact.get(jid)) : ''; } catch (e) { return ''; } };
+    /** @param {any} w */
+    const userOf = (w) => {
+      try { return (typeof w === 'string' ? w : String((w && (w.user || w._serialized || w.$1)) || '')).split('@')[0]; } catch (e) { return ''; }
+    };
+    /** @param {any} x @returns {any[]} */
+    const jidList = (x) => { try { return x && Array.isArray(x.mentionedJidList) ? x.mentionedJidList : []; } catch (e) { return []; } };
+    /** @param {any} p @returns {any[]} */
+    const asArray = (p) => (!p ? [] : typeof p.getModelsArray === 'function' ? p.getModelsArray() : Array.isArray(p.models) ? p.models : Array.isArray(p) ? p : []);
+    /** Resolução que não depende da mensagem (fallbacks 2–4), memorizada por número. @type {Map<string, string>} */
+    const byNumber = new Map();
+    /** @param {string} n */
+    const resolveNumber = (n) => {
+      const cached = byNumber.get(n);
+      if (cached !== undefined) return cached;
+      let name = nameFromJid(n + '@lid') || nameFromJid(n + '@c.us');
+      if (!name) {
+        try {
+          const meta = chat && chat.groupMetadata;
+          const p = asArray(meta && meta.participants).find((/** @type {any} */ x) => x && userOf(x.id) === n);
+          if (p) name = (p.contact && nameOf(p.contact)) || nameFromJid(p.id);
+        } catch (e) { name = ''; }
+      }
+      byNumber.set(n, name);
+      return name;
+    };
+    /** @type {Map<string, string>} */
+    const aliases = new Map();
+    /** @param {string} s @param {any[]} list */
+    // Borda: não é menção se vier colado em letra/dígito/./:/@/- (e-mail, URL) nem se seguir letra/dígito.
+    const MENTION_RE = /(?<![\w./:@-])@(\d{6,})(?!\w)/g;
+    const mentions = (s, list) => (s.indexOf('@') < 0 ? s : s.replace(MENTION_RE, (_, /** @type {string} */ n) => {
+      let name = '';
+      for (const w of list) if (!name && userOf(w) === n) name = nameFromJid(w);
+      if (name && !byNumber.get(n)) byNumber.set(n, name); // mesma pessoa, mesmo nome nas mensagens seguintes sem lista
+      if (!name) name = resolveNumber(n);
+      if (name) return '@' + name;
+      let alias = aliases.get(n);
+      if (!alias) { alias = 'participante-' + (aliases.size + 1); aliases.set(n, alias); }
+      return '@' + alias;
+    }));
+
     /** @param {any} m */
     const authorName = (m) => {
       if (m.id && m.id.fromMe) return 'Eu';
@@ -161,7 +225,14 @@ export function storeCollect(startId, endId, domIds, cap) {
       try { q = m.quotedMsg || (typeof m.quotedMsgObj === 'function' ? m.quotedMsgObj() : null); } catch (e) { q = null; }
       if (!q) return '';
       const txt = q.type === 'chat' ? (q.body || '') : (q.caption || ('[' + (q.type || 'mídia') + ']'));
-      return String(txt).slice(0, 120);
+      // Resolve antes de cortar (o corte não pode deixar meio número). Lista da citada primeiro, depois a da resposta.
+      const full = mentions(String(txt), jidList(q).concat(jidList(m)));
+      if (full.length <= 120) return full;
+      let cut = full.slice(0, 120);
+      // Se o corte caiu no meio de um "@nome"/"@participante-N", tira o token inteiro (meio apelido troca a pessoa).
+      const at = cut.lastIndexOf('@');
+      if (at >= 0 && !/\s/.test(cut.slice(at + 1)) && /[\wÀ-ÿ-]/.test(full.charAt(120))) cut = cut.slice(0, at).trimEnd();
+      return cut;
     };
     out.msgs = slice.map((/** @type {any} */ m) => {
       const id = ser(m.id);
@@ -172,8 +243,8 @@ export function storeCollect(startId, endId, domIds, cap) {
         t: Number(m.t) || 0,
         fromMe: !!(m.id && m.id.fromMe),
         type,
-        body: type === 'chat' && typeof m.body === 'string' ? m.body : '',
-        caption: typeof m.caption === 'string' ? m.caption : '',
+        body: type === 'chat' && typeof m.body === 'string' ? mentions(m.body, jidList(m)) : '',
+        caption: typeof m.caption === 'string' ? mentions(m.caption, jidList(m)) : '',
         filename: m.filename ? String(m.filename) : '',
         mimetype: m.mimetype ? String(m.mimetype) : '',
         duration: m.duration != null ? m.duration : 0,

@@ -66,7 +66,7 @@ _38 mensagens · 13/10/2026 09:12 → 14/10/2026 18:40 · gerado em 14/10/2026 1
 |---|---|
 | **Seleção em dois cliques** | Primeira e última mensagem; o intervalo inteiro fica realçado em lilás. `Esc` cancela. Trocar de chat no meio avisa e cancela a seleção. |
 | **Tudo que tem no trecho** | Texto, citações (`↳ responde #n`), **áudios transcritos** (ElevenLabs Scribe v2, com modelo reserva), **PDFs** (leitura nativa do modelo) e **imagens** (com legenda). |
-| **Dois modos de saída** | **Minhas tasks:** checklist com tipo (pedido a mim, ao grupo, compromisso meu, dependência), quem pediu, prazo absoluto, mensagens de origem, anexos, confiança e ambiguidade, mais pendências e perguntas em aberto. **Brief pra IA:** Markdown com seções fixas (Contexto, O que foi pedido, Entregável, Restrições, Anexos, Lacunas, Perguntas). |
+| **Dois modos de saída** | **Minhas tasks:** checklist com tipo (pedido a mim, ao grupo, compromisso meu, dependência), quem pediu, prazo absoluto, mensagens de origem, anexos, confiança e ambiguidade, mais pendências e perguntas em aberto. **Brief pra IA:** Markdown com seções fixas (Contexto, O que foi pedido, Restrições, Anexos, Lacunas, Perguntas). |
 | **Custo antes e depois** | Prévia de custo antes de rodar, confirmação extra acima do teto (padrão US$ 1,00) e **custo real** do OpenRouter no resultado. |
 | **Cache de transcrições** | Áudio transcrito uma vez não é baixado nem cobrado de novo. Botão pra limpar em Configurações. |
 | **Retomar** | Se o job parar (troca de chat, erro de rede, cancelamento), **Retomar** continua só do que falta, no mesmo modo. |

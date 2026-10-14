@@ -40,21 +40,23 @@ Escreva em Markdown com exatamente estas seções, nesta ordem:
 
 ## Contexto
 ## O que foi pedido
-(lista numerada; cada item cita a mensagem de origem como [#n])
-## Entregável esperado
+(lista numerada; cada item cita a mensagem de origem como [#n] e diz o que entregar e em que forma; o que não foi dito vira "não informado")
 ## Restrições e preferências ditas
 ## Anexos
 (o que cada anexo contém e o que importa nele)
 ## Lacunas
 (todo item cujo conteúdo não chegou até você e que possa conter um pedido: marcado como NÃO TRANSCRITO, mídia indisponível, não enviado ou não enviada, áudio longo demais, ignorado ou ignorada, não lido, apagada, não suportado ou sem texto; cite [#n] e por que pode importar)
 ## Perguntas antes de executar
+(só o que bloqueia a execução; não repita o que já está em Lacunas)
 
 Regras:
 - Use voz imperativa, dirigida ao agente.
-- Correções posteriores prevalecem sobre o que foi dito antes.
+- Correções posteriores prevalecem sobre o que foi dito antes. Registre só a decisão vigente; não cite as versões anteriores que ela substituiu.
 - Prazos relativos viram datas absolutas, calculadas a partir da data da mensagem.
 - O que não foi dito vira "não informado".
 - Nunca invente requisitos.
+- Nunca escreva IDs numéricos de contato; use o nome, os apelidos "@participante-1", "@participante-2"… que vierem no texto, ou "participante não identificado".
+- Mire em até 600 palavras para trechos de até 200 mensagens; só passe disso se houver mais de 3 entregáveis distintos.
 - Sem preâmbulo e sem conclusão: comece direto em "## Contexto".`;
 
 export const TASKS_SCHEMA = {

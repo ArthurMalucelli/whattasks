@@ -191,6 +191,147 @@ describe('storeCollect com data-id só HEX (WhatsApp Web 2.3000.1050+)', () => {
   });
 });
 
+/**
+ * Store falso de grupo pras menções (WA Web 2.3000.1050+: @menção no texto vira o número cru do @lid).
+ * Cada spec vira uma mensagem do chat ativo (campos do spec sobrescrevem o padrão); `get` faz o papel de
+ * Contact.get (undefined = não resolveu; lançar = falha do Store). Devolve a coleta do trecho inteiro.
+ * @param {any[]} specs @param {(jid: any) => any} get @param {any} [groupMetadata]
+ */
+function collectMentions(specs, get, groupMetadata) {
+  const models = specs.map((s, i) => ({
+    id: { id: 'MN' + i, _serialized: `false_1203@g.us_MN${i}_9999@lid`, fromMe: false, remote: { _serialized: '1203@g.us' } },
+    t: 100 + i, type: 'chat', body: '', author: '9999@lid', ...s,
+  }));
+  const chat = { id: { _serialized: '1203@g.us' }, formattedTitle: 'Grupo', msgs: { getModelsArray: () => models }, groupMetadata };
+  g.require = (/** @type {string} */ name) => {
+    if (name === 'WAWebCollections') return { Msg: { get: () => undefined }, Chat: { getActive: () => chat, get: () => undefined }, Contact: { get } };
+    throw new Error('módulo desconhecido ' + name);
+  };
+  return reserialize(storeCollect)('MN0', 'MN' + (models.length - 1), [], 300);
+}
+
+/** Nenhum campo de texto pode sobrar com "@" + número cru. @param {any} r */
+function semNumeroCru(r) {
+  for (const m of r.msgs) for (const k of ['body', 'caption', 'quotedText']) expect(m[k]).not.toMatch(/@\d{6,}/);
+}
+
+describe('storeCollect resolve @menções numéricas (@lid) em nomes', () => {
+  it('menção pela mentionedJidList vira @nome; autor continua igual', () => {
+    const r = collectMentions(
+      [{ body: '@149434948169739 manda o kindle', mentionedJidList: ['149434948169739@lid'] }],
+      (jid) => (jid === '149434948169739@lid' ? { pushname: 'Chedid' } : undefined),
+    );
+    expect(r.error).toBe('');
+    expect(r.msgs[0].body).toBe('@Chedid manda o kindle');
+    expect(r.msgs[0].authorName).toBe('+9999');
+    expect(r.msgs[0].hex).toBe('MN0');
+  });
+
+  it('entrada da mentionedJidList é passada como veio (wid objeto) e tem prioridade sobre os fallbacks', () => {
+    const wid = { user: '5511987654321', server: 'c.us', _serialized: '5511987654321@c.us' };
+    const soSerialized = { _serialized: '777777777@lid' };
+    const r = collectMentions(
+      [{ body: '@5511987654321 e @777777777 e @123456789', mentionedJidList: [wid, soSerialized, '123456789@c.us'] }],
+      (jid) => {
+        if (jid === wid) return { name: 'Ana' };
+        if (jid === soSerialized) return { verifiedName: 'Loja X' };
+        if (jid === '123456789@c.us') return { notifyName: 'Pela lista' };
+        if (jid === '123456789@lid') return { name: 'Pelo fallback' };
+        return undefined;
+      },
+    );
+    expect(r.msgs[0].body).toBe('@Ana e @Loja X e @Pela lista');
+  });
+
+  it('sem mentionedJidList: resolve por N@lid e, se não, por N@c.us', () => {
+    const r = collectMentions(
+      [{ body: '@2345678901 e @3456789012' }],
+      (jid) => (jid === '2345678901@lid' ? { name: 'Bia' } : jid === '3456789012@c.us' ? { notifyName: 'Caio' } : undefined),
+    );
+    expect(r.msgs[0].body).toBe('@Bia e @Caio');
+  });
+
+  it('último recurso: participantes do grupo (contact do participante ou Contact.get(participant.id))', () => {
+    const pid = { user: '5678901234', _serialized: '5678901234@lid' };
+    const participants = [
+      { id: { user: '4567890123', _serialized: '4567890123@lid' }, contact: { formattedName: 'Duda' } },
+      { id: pid },
+    ];
+    const get = (/** @type {any} */ jid) => (jid === pid ? { pushname: 'Enzo' } : undefined);
+    const body = '@4567890123 chama o @5678901234';
+    for (const p of [{ getModelsArray: () => participants }, { models: participants }, participants]) {
+      const r = collectMentions([{ body }], get, { participants: p });
+      expect(r.msgs[0].body).toBe('@Duda chama o @Enzo');
+    }
+  });
+
+  it('não resolvidos viram @participante-N estável em todo o trecho', () => {
+    const r = collectMentions(
+      [{ body: '@111111111 e @222222222 e @111111111' }, { body: 'nada aqui' }, { body: '@333333333 responde @222222222' }],
+      () => undefined,
+    );
+    expect(r.msgs.map((/** @type {any} */ m) => m.body)).toEqual([
+      '@participante-1 e @participante-2 e @participante-1',
+      'nada aqui',
+      '@participante-3 responde @participante-2',
+    ]);
+  });
+
+  it('contato cujo único nome é o próprio número não vaza o número: vira apelido', () => {
+    const r = collectMentions(
+      [{ body: 'fala @149434948169739', mentionedJidList: ['149434948169739@lid'] }],
+      (jid) => (String(jid).startsWith('149434948169739') ? { formattedName: '+149434948169739' } : undefined),
+    );
+    expect(r.msgs[0].body).toBe('fala @participante-1');
+  });
+
+  it('legenda de mídia e texto citado também são resolvidos (citada usa a própria mentionedJidList)', () => {
+    const qwid = { user: '888888888', _serialized: '888888888@lid' };
+    const mwid = { user: '666666666', _serialized: '666666666@lid' };
+    const get = (/** @type {any} */ jid) => {
+      if (jid === '149434948169739@lid') return { pushname: 'Chedid' };
+      if (jid === qwid) return { name: 'Eva' };
+      if (jid === mwid) return { name: 'Fábio' };
+      return undefined;
+    };
+    const r = collectMentions([
+      { type: 'image', body: '', caption: 'olha isso @149434948169739', mentionedJidList: ['149434948169739@lid'] },
+      { body: 'feito', quotedStanzaID: 'Q1', quotedMsg: { type: 'chat', body: 'pergunta pro @888888888', mentionedJidList: [qwid] } },
+      { body: 'ok @666666666', mentionedJidList: [mwid], quotedStanzaID: 'Q2', quotedMsg: { type: 'image', caption: 'foto do @666666666' } },
+    ], get);
+    expect(r.msgs[0].caption).toBe('olha isso @Chedid');
+    expect(r.msgs[1].quotedHex).toBe('Q1');
+    expect(r.msgs[1].quotedText).toBe('pergunta pro @Eva');
+    expect(r.msgs[2].body).toBe('ok @Fábio');
+    expect(r.msgs[2].quotedText).toBe('foto do @Fábio');
+    semNumeroCru(r);
+  });
+
+  it('@ curto e e-mail ficam intactos; mensagem sem @ sai byte a byte igual', () => {
+    const sem = 'sem menção nenhuma, pedido 123456789 às 10h';
+    const r = collectMentions(
+      [{ body: 'vê com o @12 e o @12345, manda pra x@gmail.com' }, { body: sem }],
+      () => ({ name: 'Não deveria aparecer' }),
+    );
+    expect(r.msgs[0].body).toBe('vê com o @12 e o @12345, manda pra x@gmail.com');
+    expect(r.msgs[1].body).toBe(sem);
+  });
+
+  it('Contact.get lançando não derruba a coleta: cai no apelido', () => {
+    const r = collectMentions(
+      [{ body: '@111111111 e @2345678901', mentionedJidList: ['111111111@lid'] }],
+      (jid) => {
+        if (String(jid).startsWith('111111111')) throw new Error('Store quebrou');
+        return jid === '2345678901@lid' ? { name: 'Bia' } : undefined;
+      },
+      { participants: { getModelsArray: () => { throw new Error('metadata quebrou'); } } },
+    );
+    expect(r.error).toBe('');
+    expect(r.msgs[0].body).toBe('@participante-1 e @Bia');
+    expect(r.msgs[0].authorName).toBe('+9999');
+  });
+});
+
 describe('storeMedia resolve pelo HEX quando Msg.get falha', () => {
   it('acha a mensagem no chat ativo pelo hex e devolve o blob', async () => {
     const blob = new Blob(['x'], { type: 'audio/ogg' });
@@ -254,5 +395,46 @@ describe('storeCollect/storeDiag com WAWebCollections indisponível', () => {
     g.document = { querySelectorAll: () => [] };
     expect(reserialize(storeCollect)('a', 'b', [], 300).error).toContain('WAWebCollections');
     expect(reserialize(storeDiag)().error).toContain('WAWebCollections');
+  });
+});
+
+describe('storeCollect: bordas da resolução de menções (revisão adversarial)', () => {
+  it('não mexe em @ dentro de URL, e-mail com domínio numérico ou token com letras coladas', () => {
+    const body = 'veja https://x.y/@123456789 e joao@1234567.com e @123456abc; (@123456789) oi @123456789. e a,@123456789';
+    const r = collectMentions([{ body }], () => undefined);
+    expect(r.msgs[0].body).toBe('veja https://x.y/@123456789 e joao@1234567.com e @123456abc; (@participante-1) oi @participante-1. e a,@participante-1');
+  });
+
+  it('nome achado pela mentionedJidList vale pro mesmo número em mensagens seguintes sem lista', () => {
+    const wid = { user: '123456789', _serialized: '123456789@lid' };
+    const r = collectMentions(
+      [{ body: '@123456789 manda', mentionedJidList: [wid] }, { body: 'cadê, @123456789?' }],
+      (jid) => (jid === wid ? { name: 'Ana' } : undefined),
+    );
+    expect(r.msgs.map((/** @type {any} */ m) => m.body)).toEqual(['@Ana manda', 'cadê, @Ana?']);
+  });
+
+  it('número que é prefixo de outro não é trocado dentro do maior', () => {
+    const r = collectMentions([{ body: '@123456 e @1234567 e @123456' }], (jid) => (jid === '1234567@lid' ? { name: 'Longo' } : undefined));
+    expect(r.msgs[0].body).toBe('@participante-1 e @Longo e @participante-1');
+  });
+
+  it('corte de 120 chars do texto citado não deixa apelido ou nome pela metade', () => {
+    const longo = 'x'.repeat(110) + ' @111111111 fim';
+    const r = collectMentions([{ body: 'ok', quotedStanzaID: 'Q9', quotedMsg: { type: 'chat', body: longo } }], () => undefined);
+    expect(r.msgs[0].quotedText).toBe('x'.repeat(110));
+    const cabe = 'y'.repeat(100) + ' @111111111';
+    const r2 = collectMentions([{ body: 'ok', quotedStanzaID: 'Q8', quotedMsg: { type: 'chat', body: cabe } }], () => undefined);
+    expect(r2.msgs[0].quotedText).toBe('y'.repeat(100) + ' @participante-1');
+  });
+
+  it('nome que é telefone disfarçado com caracteres invisíveis ou hífen especial não vaza', () => {
+    const r = collectMentions(
+      [{ body: 'fala @149434948169739', mentionedJidList: ['149434948169739@lid'] }],
+      () => ({ formattedName: '\u202A+149 434 948\u2011169 739\u202C' }),
+    );
+    expect(r.msgs[0].body).toBe('fala @participante-1');
+    const emoji = collectMentions([{ body: 'oi @149434948169739', mentionedJidList: ['149434948169739@lid'] }], () => ({ pushname: '🦉' }));
+    expect(emoji.msgs[0].body).toBe('oi @🦉');
   });
 });

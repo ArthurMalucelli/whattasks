@@ -6,6 +6,11 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 
 ## [Não publicado]
 
+### Alterado
+
+- Brief pra IA: "Entregável esperado" foi fundido em "O que foi pedido" (6 seções); perguntas só do que bloqueia e sem repetir Lacunas; só a decisão vigente, sem o histórico que ela substituiu; nunca IDs numéricos de contato; alvo de até 600 palavras pra trechos de até 200 mensagens.
+- Coleta: menções `@<número>` em grupos (jids `@lid`) viram `@Nome` via o Store; sem nome, viram um apelido estável `@participante-N` dentro do trecho.
+
 ## [1.0.0] - 2026-10-14
 
 Primeira versão pública.

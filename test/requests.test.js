@@ -97,8 +97,30 @@ describe('buildChatRequest', () => {
     expect('response_format' in body).toBe(false);
   });
 
-  it('lança erro para modo inválido', () => {
-    expect(() => buildChatRequest(loose({ model: 'm', systemPrompt: 'S', parts: PARTS, mode: 'resumo' }))).toThrow(/modo inválido/);
+  it('modo resumo gera o corpo exato sem response_format e com o prompt de sistema informado', () => {
+    const body = buildChatRequest({ model: 'm', systemPrompt: 'RESUMO', parts: PARTS, mode: 'resumo', schema: SCHEMA });
+    expect(body).toStrictEqual({
+      model: 'm',
+      max_tokens: 32000,
+      reasoning: { effort: 'high' },
+      usage: { include: true },
+      provider: { require_parameters: true },
+      plugins: [{ id: 'file-parser', pdf: { engine: 'native' } }],
+      messages: [
+        { role: 'system', content: 'RESUMO' },
+        { role: 'user', content: PARTS },
+      ],
+    });
+  });
+
+  it('jsonFallback no modo resumo não muda nada', () => {
+    const body = buildChatRequest({ model: 'm', systemPrompt: 'RESUMO', parts: PARTS, mode: 'resumo', schema: SCHEMA, jsonFallback: true });
+    expect(body.messages[0].content).toBe('RESUMO');
+    expect('response_format' in body).toBe(false);
+  });
+
+  it('lança erro para modo desconhecido', () => {
+    expect(() => buildChatRequest(loose({ model: 'm', systemPrompt: 'S', parts: PARTS, mode: 'outro' }))).toThrow('modo inválido: outro');
   });
 
   it('lança erro quando mode está ausente', () => {

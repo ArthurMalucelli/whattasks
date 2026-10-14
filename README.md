@@ -5,7 +5,7 @@
 <h1 align="center">WhatTasks</h1>
 
 <p align="center">
-  <strong>Selecione um trecho do WhatsApp Web. Receba o checklist do que pediram pra você, ou um brief pronto pra IA.</strong>
+  <strong>Selecione um trecho do WhatsApp Web. Receba o checklist do que pediram pra você, um brief pronto pra IA ou um resumo do trecho.</strong>
 </p>
 
 <p align="center">
@@ -17,13 +17,13 @@
   <img src="https://img.shields.io/badge/testado%20com-vitest-6E9F18?logo=vitest&logoColor=white" alt="Testado com vitest">
 </p>
 
-> **English.** WhatTasks is a Manifest V3 browser extension (Firefox/Zen first, Chrome supported) that adds an owl button to WhatsApp Web's left rail. Click the first and last message of a conversation range and it collects text, voice notes (transcribed), PDFs and images, then asks Claude (via OpenRouter, with your own API key) for either a task checklist of what was asked of you or a structured brief to paste into an AI agent. Read-only, nothing is sent on your behalf, and every run shows its cost upfront. The UI and docs are in Brazilian Portuguese.
+> **English.** WhatTasks is a Manifest V3 browser extension (Firefox/Zen first, Chrome supported) that adds an owl button to WhatsApp Web's left rail. Click the first and last message of a conversation range and it collects text, voice notes (transcribed), PDFs and images, then asks Claude (via OpenRouter, with your own API key) for a task checklist of what was asked of you, a structured brief to paste into an AI agent, or a short summary of the range. Read-only, nothing is sent on your behalf, and every run shows its cost upfront. The UI and docs are in Brazilian Portuguese.
 
 ---
 
 ## O que é
 
-Grupos e conversas longas misturam pedido, áudio de 4 minutos, PDF e "ah, e aquilo pra sexta". O WhatTasks lê só o trecho que você marcar e devolve, em português, **as tasks que caem pra você** (com quem pediu, prazo e de onde veio) ou **um brief pra colar no Claude Code, no ChatGPT ou em outro agente**. Roda dentro do próprio WhatsApp Web, num card flutuante, com a sua chave do OpenRouter.
+Grupos e conversas longas misturam pedido, áudio de 4 minutos, PDF e "ah, e aquilo pra sexta". O WhatTasks lê só o trecho que você marcar e devolve, em português, **as tasks que caem pra você** (com quem pediu, prazo e de onde veio) **um brief pra colar no Claude Code, no ChatGPT ou em outro agente** ou **um resumo curto do que foi dito** (decisões e o que ficou em aberto). Roda dentro do próprio WhatsApp Web, num card flutuante, com a sua chave do OpenRouter.
 
 <p align="center">
   <img src="docs/card.png" alt="Card do WhatTasks aberto ao lado do trilho de ícones do WhatsApp Web" width="420">
@@ -35,7 +35,7 @@ Grupos e conversas longas misturam pedido, áudio de 4 minutos, PDF e "ah, e aqu
 |---|---|---|
 | 1 | Clique na **coruja** no trilho de ícones à esquerda do WhatsApp (abaixo de Conversas, Status, Canais, Comunidades) | Abre o card ao lado do trilho. Na primeira vez, Configurações abre sozinha pra você colar a chave do OpenRouter. |
 | 2 | **Selecionar** → clique na **primeira** mensagem → role → clique na **última** | O trecho fica realçado em lilás; o card mostra a contagem (msgs, áudios, PDFs, imagens) e o custo estimado. |
-| 3 | **Minhas tasks** ou **Brief pra IA** | Baixa a mídia, transcreve os áudios e manda tudo pro modelo. Acima do teto de custo, acima do limite de áudio ou com áudios no trecho (aviso de recibo ligado), o botão vira **Confirmar ≈ US$ …** e pede um segundo clique em até 10 s. |
+| 3 | **Minhas tasks**, **Brief pra IA** ou **Resumo** | Baixa a mídia, transcreve os áudios e manda tudo pro modelo. Acima do teto de custo, acima do limite de áudio ou com áudios no trecho (aviso de recibo ligado), o botão vira **Confirmar ≈ US$ …** e pede um segundo clique em até 10 s. |
 | 4 | **Copiar** ou **Baixar .md** | Resultado em Markdown, com o custo real informado pelo OpenRouter. |
 
 <details>
@@ -66,7 +66,7 @@ _38 mensagens · 13/10/2026 09:12 → 14/10/2026 18:40 · gerado em 14/10/2026 1
 |---|---|
 | **Seleção em dois cliques** | Primeira e última mensagem; o intervalo inteiro fica realçado em lilás. `Esc` cancela. Trocar de chat no meio avisa e cancela a seleção. |
 | **Tudo que tem no trecho** | Texto, citações (`↳ responde #n`), **áudios transcritos** (ElevenLabs Scribe v2, com modelo reserva), **PDFs** (leitura nativa do modelo) e **imagens** (com legenda). |
-| **Dois modos de saída** | **Minhas tasks:** checklist com tipo (pedido a mim, ao grupo, compromisso meu, dependência), quem pediu, prazo absoluto, mensagens de origem, anexos, confiança e ambiguidade, mais pendências e perguntas em aberto. **Brief pra IA:** Markdown com seções fixas (Contexto, O que foi pedido, Restrições, Anexos, Lacunas, Perguntas). |
+| **Três modos de saída** | **Minhas tasks:** checklist com tipo (pedido a mim, ao grupo, compromisso meu, dependência), quem pediu, prazo absoluto, mensagens de origem, anexos, confiança e ambiguidade, mais pendências e perguntas em aberto. **Brief pra IA:** Markdown com seções fixas (Contexto, O que foi pedido, Restrições, Anexos, Lacunas, Perguntas). **Resumo:** parágrafo de até 150 palavras sobre o que foi dito, mais Decisões e combinados e Em aberto, cada item com a mensagem de origem ([#n]). |
 | **Custo antes e depois** | Prévia de custo antes de rodar, confirmação extra acima do teto (padrão US$ 1,00) e **custo real** do OpenRouter no resultado. |
 | **Cache de transcrições** | Áudio transcrito uma vez não é baixado nem cobrado de novo. Botão pra limpar em Configurações. |
 | **Retomar** | Se o job parar (troca de chat, erro de rede, cancelamento), **Retomar** continua só do que falta, no mesmo modo. |
@@ -153,7 +153,7 @@ Detalhes (contextos, contratos de mensagem, resolução `data-id` → Store, lim
 
 | Tema | Como é |
 |---|---|
-| **Para onde vão os dados** | Texto, transcrições, PDFs e imagens do trecho (inclusive de outras pessoas) vão pro **OpenRouter** e daí pro provedor do modelo e do STT. Nada sai antes de você clicar em **Minhas tasks** ou **Brief pra IA**. Não há servidor próprio nem telemetria. |
+| **Para onde vão os dados** | Texto, transcrições, PDFs e imagens do trecho (inclusive de outras pessoas) vão pro **OpenRouter** e daí pro provedor do modelo e do STT. Nada sai antes de você clicar em **Minhas tasks**, **Brief pra IA** ou **Resumo**. Não há servidor próprio nem telemetria. |
 | **Só leitura** | A extensão nunca envia, apaga, marca como lida ou altera mensagens. Ela só lê o Store e baixa mídia com os mesmos parâmetros do próprio WhatsApp. |
 | **Main world** | Nenhum script fica injetado de forma persistente no contexto da página: cada leitura é uma função autocontida executada e encerrada. |
 | **Declaração ao Firefox** | O `manifest.json` declara `personalCommunications` e `websiteContent` em `data_collection_permissions`: o prompt de instalação avisa que a extensão transmite comunicações pessoais e conteúdo de sites (pro OpenRouter, quando você manda rodar). Não há coleta própria. |

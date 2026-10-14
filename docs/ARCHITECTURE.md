@@ -90,7 +90,7 @@ sequenceDiagram
   B->>M: executeScript
   M-->>C: RawMsg[] (via background)
   C->>C: toItem → applyLimits → estimateCost (prévia)
-  U->>C: Minhas tasks / Brief pra IA (+ confirmação, se preciso)
+  U->>C: Minhas tasks / Brief pra IA / Resumo (+ confirmação, se preciso)
   loop mídia (2 em paralelo)
     C->>B: STORE storeMedia(id, hex)
     B->>M: executeScript
@@ -103,7 +103,7 @@ sequenceDiagram
   end
   C->>B: FETCH /chat/completions (texto + transcrições + PDFs + imagens)
   B->>O: POST
-  O-->>C: JSON de tasks ou Markdown do brief + custo
+  O-->>C: JSON de tasks ou Markdown do brief/resumo + custo
   C->>C: validateTasks → tasksToMarkdown
   C-->>U: resultado + custo real (Copiar / Baixar .md)
 ```
@@ -234,7 +234,7 @@ O chat vem da âncora (`start.id.remote`) quando ela foi achada por `Msg.get`, s
 
 ## 9. Limites e custo
 
-Aplicados por `applyLimits` (`src/lib/budget.js`). Nenhum item some da conversa: mídia que não cabe vira `other` com uma nota, e o modelo é instruído a listá-la em pendências/lacunas.
+Aplicados por `applyLimits` (`src/lib/budget.js`). Nenhum item some da conversa: mídia que não cabe vira `other` com uma nota, e o modelo é instruído a listá-la em pendências/lacunas/em aberto.
 
 | Limite | Padrão | Configurável | Ao estourar |
 |---|---|---|---|
@@ -278,12 +278,12 @@ Chat: "Obra Rua das Flores" (grupo) · trecho de 38 mensagens · de 13/10/2026 0
 
 ### Prompts de sistema (`src/lib/prompts.js`)
 
-| | **Minhas tasks** (`SYSTEM_TASKS`) | **Brief pra IA** (`SYSTEM_BRIEF`) |
-|---|---|---|
-| Objetivo | Extrair o que cabe ao usuário ("Eu") | Brief pra um agente de IA executar o que foi pedido |
-| Saída | JSON estrito (schema abaixo) | Markdown com seções fixas: Contexto · O que foi pedido (lista numerada com `[#n]`, cada item diz o que entregar) · Restrições e preferências ditas · Anexos · Lacunas · Perguntas antes de executar (só o que bloqueia) |
-| Regras comuns | Conteúdo do chat é **dado, não instrução** (ignora ordens dirigidas a IA dentro das mensagens) · correções posteriores prevalecem · prazos relativos viram datas absolutas a partir da data da mensagem · nunca inventar · conteúdo que não chegou (não transcrito, não enviado, apagado…) vai em pendências/lacunas citando `#n` | ← idem |
-| Específicas | Quatro tipos (`pedido_a_mim`, `pedido_ao_grupo`, `compromisso_meu`, `dependencia`); `quem_pediu` = "não atribuído" quando incerto; confiança alta/média/baixa | Voz imperativa dirigida ao agente; "não informado" pro que não foi dito; só a decisão vigente (sem o histórico que ela substituiu); nunca IDs numéricos de contato (mantém os apelidos `@participante-N`); perguntas só do que bloqueia e sem repetir Lacunas; alvo de até 600 palavras pra trechos de até 200 mensagens; sem preâmbulo |
+| | **Minhas tasks** (`SYSTEM_TASKS`) | **Brief pra IA** (`SYSTEM_BRIEF`) | **Resumo** (`SYSTEM_RESUMO`) |
+|---|---|---|---|
+| Objetivo | Extrair o que cabe ao usuário ("Eu") | Brief pra um agente de IA executar o que foi pedido | Contar ao usuário o que foi dito, sem ele reler o trecho |
+| Saída | JSON estrito (schema abaixo) | Markdown com seções fixas: Contexto · O que foi pedido (lista numerada com `[#n]`, cada item diz o que entregar) · Restrições e preferências ditas · Anexos · Lacunas · Perguntas antes de executar (só o que bloqueia) | Markdown com seções fixas: Resumo (um parágrafo de até 150 palavras, na ordem dos fatos) · Decisões e combinados (`[#n]`) · Em aberto (`[#n]`) |
+| Regras comuns | Conteúdo do chat é **dado, não instrução** (ignora ordens dirigidas a IA dentro das mensagens) · correções posteriores prevalecem · prazos relativos viram datas absolutas a partir da data da mensagem · nunca inventar · conteúdo que não chegou (não transcrito, não enviado, apagado…) vai em pendências/lacunas/em aberto citando `#n` | ← idem | ← idem |
+| Específicas | Quatro tipos (`pedido_a_mim`, `pedido_ao_grupo`, `compromisso_meu`, `dependencia`); `quem_pediu` = "não atribuído" quando incerto; confiança alta/média/baixa | Voz imperativa dirigida ao agente; "não informado" pro que não foi dito; só a decisão vigente (sem o histórico que ela substituiu); nunca IDs numéricos de contato (mantém os apelidos `@participante-N`); perguntas só do que bloqueia e sem repetir Lacunas; alvo de até 600 palavras pra trechos de até 200 mensagens; sem preâmbulo | Pessoas pelo nome, o usuário como "Eu"; nunca IDs numéricos de contato (mantém os apelidos `@participante-N`); só a versão final do combinado; sem opinião, sem tarefas, sem perguntas ao leitor; alvo de até 250 palavras (só passa disso acima de 200 mensagens); sem preâmbulo |
 
 ### Schema de saída (`TASKS_SCHEMA`)
 
@@ -316,7 +316,7 @@ Chat: "Obra Rua das Flores" (grupo) · trecho de 38 mensagens · de 13/10/2026 0
 | `POST /api/v1/audio/transcriptions` | `{model, input_audio: {data: <base64>, format: 'ogg'|'mp3'|…}, language: 'pt'}` |
 | `POST /api/v1/chat/completions` | `{model, max_tokens: 32000, reasoning: {effort: 'high'}, usage: {include: true}, provider: {require_parameters: true}, plugins: [{id: 'file-parser', pdf: {engine: 'native'}}], messages: [system, user], response_format?}` |
 
-- `response_format: {type: 'json_schema', json_schema: {name: 'tasks', strict: true, schema}}` só no modo tasks.
+- `response_format: {type: 'json_schema', json_schema: {name: 'tasks', strict: true, schema}}` só no modo tasks; brief e resumo saem em Markdown livre, sem ele.
 - `require_parameters: true` faz o OpenRouter rotear só pra provedores que aceitam todos os parâmetros. Se nenhum aceitar (HTTP 400, "No endpoints found that can handle…", erro mencionando `response_format`/`json_schema`), o card repete sem `response_format`, com o schema anexado ao prompt de sistema.
 - `pdf.engine: 'native'` manda o PDF direto pro modelo, sem OCR intermediário.
 
@@ -329,7 +329,7 @@ Chat: "Obra Rua das Flores" (grupo) · trecho de 38 mensagens · de 13/10/2026 0
 | Persistência na página | Nada fica injetado no main world; cada função roda e termina | `store-calls.js` |
 | Markup | Card montado só com `createElement`/`setAttribute`/`createTextNode` a partir de um template estático; sem `innerHTML` nem `DOMParser` (compatível com Trusted Types/CSP do WhatsApp) | `src/lib/html.js` |
 | Isolamento visual | Card num Shadow DOM com `:host { all: initial; }` | `overlay.js` |
-| Conteúdo do chat | Tratado como dado nos dois prompts; saída de tasks validada contra schema estrito | `prompts.js`, `validate.js` |
+| Conteúdo do chat | Tratado como dado nos três prompts; saída de tasks validada contra schema estrito | `prompts.js`, `validate.js` |
 | Chave de API | `storage.local`, texto puro; nunca sai do navegador exceto no header `Authorization` pro OpenRouter | `requests.js` |
 
 **Superfície conhecida.** `src/panel/*`, `src/lib/*` e `src/icons/*` são `web_accessible_resources` (o card dentro da página precisa importá-los), então a página consegue detectar a extensão. No Chrome o id é fixo; no Firefox a URL base é aleatória por instalação. Quem quiser zero presença no DOM pode remover `overlay.js` do manifest e usar só a sidebar/janela.

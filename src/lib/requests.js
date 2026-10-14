@@ -6,7 +6,7 @@
 export const CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
 export const STT_URL = 'https://openrouter.ai/api/v1/audio/transcriptions';
 
-/** @typedef {'tasks'|'brief'} ChatMode */
+/** @typedef {'tasks'|'brief'|'resumo'} ChatMode */
 
 const JSON_FALLBACK_PROMPT = '\n\nResponda SOMENTE com um JSON válido exatamente neste schema, sem texto antes ou depois:\n';
 
@@ -25,7 +25,7 @@ const JSON_FALLBACK_PROMPT = '\n\nResponda SOMENTE com um JSON válido exatament
  * @returns {Record<string, any>}
  */
 export function buildChatRequest({ model, systemPrompt, parts, mode, schema, maxTokens = 32000, effort = 'high', jsonFallback = false }) {
-  if (mode !== 'tasks' && mode !== 'brief') {
+  if (mode !== 'tasks' && mode !== 'brief' && mode !== 'resumo') {
     throw new Error(`modo inválido: ${String(mode)}`);
   }
   const fallback = mode === 'tasks' && jsonFallback;

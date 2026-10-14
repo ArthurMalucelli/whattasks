@@ -10,7 +10,7 @@ import { domRowsToItems } from '../lib/domparse.js';
 import { runPool } from '../lib/pool.js';
 import { applyLimits, estimateCost } from '../lib/budget.js';
 import { buildUserContent } from '../lib/payload.js';
-import { SYSTEM_TASKS, SYSTEM_BRIEF, TASKS_SCHEMA } from '../lib/prompts.js';
+import { SYSTEM_TASKS, SYSTEM_BRIEF, SYSTEM_RESUMO, TASKS_SCHEMA } from '../lib/prompts.js';
 import { parseTasksJson } from '../lib/validate.js';
 import { tasksToMarkdown, mdFilename } from '../lib/render.js';
 import { buildChatRequest } from '../lib/requests.js';
@@ -31,7 +31,7 @@ import { transcribe, complete, sleep } from './openrouter.js';
 /** @typedef {import('../lib/messages.js').MediaResult} MediaResult */
 /** @typedef {import('../lib/messages.js').TranscriptResult} TranscriptResult */
 /** @typedef {import('../lib/job.js').Settings} Settings */
-/** @typedef {'tasks'|'brief'} Mode */
+/** @typedef {'tasks'|'brief'|'resumo'} Mode */
 /** @typedef {'media'|'stt'|'chat'} Phase */
 /** @typedef {'chat'|'cancel'|'tab'} AbortWhy */
 /** @typedef {import('../lib/job.js').StoreStatus} StoreStatus */
@@ -120,6 +120,7 @@ export const PANEL_HTML = `
     <div class="stack">
       <button id="tasksBtn" type="button" class="btn btn-primary btn-xl ico">Minhas tasks</button>
       <button id="briefBtn" type="button" class="btn btn-primary btn-xl ico">Brief pra IA</button>
+      <button id="resumoBtn" type="button" class="btn btn-primary ico">Resumo</button>
     </div>
     <div id="banner" class="banner" hidden></div>
     <div id="meter" class="meter" hidden aria-hidden="true"><span class="meter-fill"></span></div>
@@ -225,7 +226,7 @@ const state = {
     progress: '',
     resumable: false,
   },
-  /** @type {Record<Mode, number>} */ confirmUntil: { tasks: 0, brief: 0 },
+  /** @type {Record<Mode, number>} */ confirmUntil: { tasks: 0, brief: 0, resumo: 0 },
   /** @type {Output} */ output: { text: '', raw: '', mode: null, cost: '', labels: '', hadAudio: false },
 };
 
@@ -272,6 +273,7 @@ function bindElements() {
   pickCancelBtn: btn('pickCancelBtn'),
   tasksBtn: btn('tasksBtn'),
   briefBtn: btn('briefBtn'),
+  resumoBtn: btn('resumoBtn'),
   resumeBtn: btn('resumeBtn'),
   cancelJobBtn: btn('cancelJobBtn'),
   copyBtn: btn('copyBtn'),
@@ -290,7 +292,10 @@ function bindElements() {
 let el;
 
 /** @type {Record<Mode, string>} */
-const MODE_LABEL = { tasks: 'Minhas tasks', brief: 'Brief pra IA' };
+const SYSTEM_PROMPT = { tasks: SYSTEM_TASKS, brief: SYSTEM_BRIEF, resumo: SYSTEM_RESUMO };
+
+/** @type {Record<Mode, string>} */
+const MODE_LABEL = { tasks: 'Minhas tasks', brief: 'Brief pra IA', resumo: 'Resumo' };
 
 /** @param {string} text @param {'ok'|'warn'|'err'|''} [kind] */
 function setStatus(text, kind = '') {
@@ -329,8 +334,10 @@ function renderJob() {
   const ready = state.plannedItems.length > 0;
   el.pickBtn.disabled = !state.tier || busy;
   el.pickCancelBtn.disabled = busy || !(state.selection.picking || state.selection.startId);
-  for (const mode of /** @type {Mode[]} */ (['tasks', 'brief'])) {
-    const b = mode === 'tasks' ? el.tasksBtn : el.briefBtn;
+  /** @type {Record<Mode, HTMLButtonElement>} */
+  const modeBtn = { tasks: el.tasksBtn, brief: el.briefBtn, resumo: el.resumoBtn };
+  for (const mode of /** @type {Mode[]} */ (['tasks', 'brief', 'resumo'])) {
+    const b = modeBtn[mode];
     b.disabled = !ready || busy;
     const confirming = Date.now() < state.confirmUntil[mode];
     b.textContent = confirming && state.cost ? `Confirmar ≈ ${formatUsd(state.cost.typical)}` : MODE_LABEL[mode];
@@ -636,7 +643,7 @@ function pruneCaches(items) {
 /** Aplica limites e estima custo (rodado na coleta e ao salvar configurações, nunca com job rodando). */
 function plan() {
   const s = state.settings;
-  state.confirmUntil = { tasks: 0, brief: 0 };
+  state.confirmUntil = { tasks: 0, brief: 0, resumo: 0 };
   state.jobWarnings = [];
   // Plano novo invalida o Retomar (o snapshot do job não é mais o trecho planejado) e o aviso dele.
   if (state.job.resumable) state.errors = [];
@@ -672,13 +679,13 @@ function onModeClick(mode) {
   if (!state.cost || running()) return;
   const mustConfirm = needsCostConfirm(state.cost, state.settings.costCap) || state.needsAudioConfirm || state.needsReceiptConfirm;
   if (mustConfirm && Date.now() >= state.confirmUntil[mode]) {
-    state.confirmUntil = { tasks: 0, brief: 0 };
+    state.confirmUntil = { tasks: 0, brief: 0, resumo: 0 };
     state.confirmUntil[mode] = Date.now() + CONFIRM_MS;
     setTimeout(renderJob, CONFIRM_MS + 50);
     renderJob();
     return;
   }
-  state.confirmUntil = { tasks: 0, brief: 0 };
+  state.confirmUntil = { tasks: 0, brief: 0, resumo: 0 };
   runJob(mode);
 }
 
@@ -840,7 +847,7 @@ async function generate(mode, items, signal, sttCost) {
   const ask = (jsonFallback) => complete({
     apiKey: state.settings.apiKey,
     body: buildChatRequest({
-      model: state.settings.model, systemPrompt: mode === 'tasks' ? SYSTEM_TASKS : SYSTEM_BRIEF, parts, mode, schema: TASKS_SCHEMA, jsonFallback,
+      model: state.settings.model, systemPrompt: SYSTEM_PROMPT[mode], parts, mode, schema: TASKS_SCHEMA, jsonFallback,
     }),
     signal,
     http: platform.httpJson,
@@ -859,7 +866,8 @@ async function generate(mode, items, signal, sttCost) {
   }
   state.output.cost = `custo real: ${formatUsd(sttCost + chatCost)}`;
   state.output.mode = mode;
-  if (mode === 'brief') {
+  // Brief e Resumo são Markdown livre: o texto do modelo vai como veio. Só tasks passa pelo JSON.
+  if (mode !== 'tasks') {
     state.output.text = res.text;
     return;
   }
@@ -1085,6 +1093,7 @@ function wire() {
   el.pickCancelBtn.addEventListener('click', () => { cancelPick(); });
   el.tasksBtn.addEventListener('click', () => onModeClick('tasks'));
   el.briefBtn.addEventListener('click', () => onModeClick('brief'));
+  el.resumoBtn.addEventListener('click', () => onModeClick('resumo'));
   el.resumeBtn.addEventListener('click', () => { resume().catch((e) => fail(`erro ao retomar: ${errText(e)}`)); });
   el.cancelJobBtn.addEventListener('click', () => stopJob('cancel'));
   el.copyBtn.addEventListener('click', () => { copy(state.output.text); });

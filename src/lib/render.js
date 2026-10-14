@@ -12,7 +12,7 @@
  * @typedef {Object} FilenameMeta
  * @property {string} chatName
  * @property {Date} date
- * @property {'tasks'|'brief'} mode
+ * @property {'tasks'|'brief'|'resumo'} mode
  */
 
 /**

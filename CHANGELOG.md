@@ -6,6 +6,10 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 
 ## [Não publicado]
 
+### Adicionado
+
+- Modo **Resumo**: terceiro botão que só resume o trecho (parágrafo de até 150 palavras, Decisões e combinados, Em aberto), mesma coleta e mesmo custo estimado dos outros modos.
+
 ### Alterado
 
 - Brief pra IA: "Entregável esperado" foi fundido em "O que foi pedido" (6 seções); perguntas só do que bloqueia e sem repetir Lacunas; só a decisão vigente, sem o histórico que ela substituiu; nunca IDs numéricos de contato; alvo de até 600 palavras pra trechos de até 200 mensagens.

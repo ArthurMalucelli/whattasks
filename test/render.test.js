@@ -88,6 +88,12 @@ describe('mdFilename', () => {
       'whattasks_chat_2026-01-02_brief.md',
     );
   });
+
+  it('usa o modo resumo no sufixo', () => {
+    const name = mdFilename({ chatName: 'Obra', date: new Date(2026, 9, 14), mode: 'resumo' });
+    expect(name.endsWith('_resumo.md')).toBe(true);
+    expect(name).toBe('whattasks_obra_2026-10-14_resumo.md');
+  });
 });
 
 describe('tasksToMarkdown', () => {

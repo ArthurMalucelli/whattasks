@@ -1,0 +1,65 @@
+{
+  "manifest_version": 3,
+  "name": "WhatTasks",
+  "version": "1.0.0",
+  "description": "Seleciona um trecho do WhatsApp Web e transforma em checklist de tasks ou brief pra IA",
+  "homepage_url": "https://github.com/ArthurMalucelli/whattasks",
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://web.whatsapp.com/*",
+    "https://openrouter.ai/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "WhatTasks (abre/fecha o painel)",
+    "default_icon": {
+      "16": "src/icons/owl-16.png",
+      "32": "src/icons/owl-32.png",
+      "48": "src/icons/owl-48.png",
+      "96": "src/icons/owl-96.png",
+      "128": "src/icons/owl-128.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "src/panel/panel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://web.whatsapp.com/*"
+      ],
+      "js": [
+        "src/content/selector.js",
+        "src/content/dom-fallback.js",
+        "src/content/overlay.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/panel/*",
+        "src/lib/*",
+        "src/icons/*"
+      ],
+      "matches": [
+        "https://web.whatsapp.com/*"
+      ]
+    }
+  ],
+  "icons": {
+    "16": "src/icons/owl-16.png",
+    "32": "src/icons/owl-32.png",
+    "48": "src/icons/owl-48.png",
+    "96": "src/icons/owl-96.png",
+    "128": "src/icons/owl-128.png"
+  }
+}

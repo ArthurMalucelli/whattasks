@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Testes, typecheck e lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Testes (vitest)
+        run: npm test
+
+      - name: Typecheck (tsc)
+        run: npm run typecheck
+
+      - name: Lint da extensão (web-ext)
+        run: npm run lint
+
+  build:
+    name: Build do .xpi
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Empacotar
+        run: npm run xpi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: whattasks-xpi
+          path: dist/whattasks.xpi
+          if-no-files-found: error

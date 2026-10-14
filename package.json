@@ -1,0 +1,47 @@
+{
+  "name": "whattasks",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Extensão de navegador (Firefox/Zen e Chrome, MV3) que transforma um trecho do WhatsApp Web em checklist de tarefas ou brief pra IA, via OpenRouter.",
+  "keywords": [
+    "whatsapp",
+    "whatsapp-web",
+    "browser-extension",
+    "firefox-extension",
+    "chrome-extension",
+    "manifest-v3",
+    "tasks",
+    "checklist",
+    "openrouter",
+    "claude",
+    "speech-to-text"
+  ],
+  "homepage": "https://github.com/ArthurMalucelli/whattasks#readme",
+  "bugs": {
+    "url": "https://github.com/ArthurMalucelli/whattasks/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ArthurMalucelli/whattasks.git"
+  },
+  "license": "MIT",
+  "author": "Arthur Malucelli",
+  "engines": {
+    "node": "^22.12.0 || >=24.0.0"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "npx --yes web-ext@10.7.0 lint --source-dir . --ignore-files 'node_modules/**' 'test/**' 'dist/**' 'scripts/**' 'docs/**' '.github/**' 'manifest.chrome.json' 'package.json' 'package-lock.json' 'tsconfig.json' 'README.md' 'LICENSE' 'CHANGELOG.md' '.gitignore' '.editorconfig'",
+    "xpi": "mkdir -p dist && zip -r -FS dist/whattasks.xpi manifest.json src -x '*.DS_Store'",
+    "build:chrome": "mkdir -p dist/chrome && rsync -a --delete --exclude .DS_Store src/ dist/chrome/src/ && cp manifest.chrome.json dist/chrome/manifest.json",
+    "demo": "python3 -m http.server 8765 --bind 127.0.0.1"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.3.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
+  }
+}

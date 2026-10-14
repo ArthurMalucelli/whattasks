@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publicar release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Conferir versão da tag
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          for f in manifest.json manifest.chrome.json package.json; do
+            v="$(node -p "require('./$f').version")"
+            if [ "$v" != "$tag" ]; then
+              echo "::error file=$f::versão $v não bate com a tag $GITHUB_REF_NAME"
+              exit 1
+            fi
+          done
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Testes (vitest)
+        run: npm test
+
+      - name: Typecheck (tsc)
+        run: npm run typecheck
+
+      - name: Lint da extensão (web-ext)
+        run: npm run lint
+
+      - name: Empacotar
+        run: |
+          mkdir -p dist
+          zip -r -FS "dist/whattasks-${GITHUB_REF_NAME}.xpi" manifest.json src -x '*.DS_Store'
+          npm run build:chrome
+          (cd dist/chrome && zip -r -FS "../whattasks-chrome-${GITHUB_REF_NAME}.zip" . -x '*.DS_Store')
+
+      - name: Notas da versão
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          {
+            awk -v v="$version" '
+              index($0, "## [" v "]") == 1 { on = 1; next }
+              on && /^## \[/ { exit }
+              on && /^\[[^]]+\]: / { exit }
+              on { print }
+            ' CHANGELOG.md
+            echo
+            echo "Histórico completo: [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/CHANGELOG.md)"
+          } > dist/RELEASE_NOTES.md
+          cat dist/RELEASE_NOTES.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: WhatTasks ${{ github.ref_name }}
+          body_path: dist/RELEASE_NOTES.md
+          files: |
+            dist/whattasks-${{ github.ref_name }}.xpi
+            dist/whattasks-chrome-${{ github.ref_name }}.zip
+          fail_on_unmatched_files: true

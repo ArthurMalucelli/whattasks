@@ -8,9 +8,19 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "types": ["chrome"],
-    "skipLibCheck": true
+    "lib": [
+      "ESNext",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "chrome"
+    ],
+    "skipLibCheck": true,
+    "resolveJsonModule": true
   },
-  "include": ["src/**/*.js", "test/**/*.js"]
+  "include": [
+    "src/**/*.js",
+    "test/**/*.js"
+  ]
 }

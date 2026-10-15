@@ -84,7 +84,7 @@ _38 mensagens · 13/10/2026 09:12 → 14/10/2026 18:40 · gerado em 14/10/2026 1
 
 | Caminho | Passos |
 |---|---|
-| **Permanente** (Zen, Firefox Developer Edition, Nightly ou ESR) | 1. Baixe o `.xpi` da [última release](https://github.com/ArthurMalucelli/whattasks/releases/latest). <br>2. Em `about:config`, mude `xpinstall.signatures.required` pra `false`. <br>3. `about:addons` → engrenagem → **Instalar extensão de arquivo…** → escolha o `.xpi`. |
+| **Permanente** (Zen, Firefox Developer Edition, Nightly ou ESR) | 1. Baixe o `.xpi` da [última release](https://github.com/ArthurMalucelli/whattasks/releases/latest). <br>2. Em `about:config`, mude `xpinstall.signatures.required` pra `false`. <br>3. `about:addons` → engrenagem → **Instalar extensão de arquivo…** → escolha o `.xpi`. <br>4. Daí em diante atualiza sozinha: o Firefox confere o `updates.json` da última release uma vez por dia e instala o `.xpi` novo (`about:addons` → engrenagem → **Procurar atualizações** força a checagem). Vale pra instalações feitas a partir da 1.1.0. |
 | **Temporária** (desenvolvimento; some ao fechar o navegador) | 1. Clone o repositório. <br>2. `about:debugging#/runtime/this-firefox` → **Carregar extensão temporária…** → escolha o `manifest.json`. |
 
 O Firefox estável comum ignora `xpinstall.signatures.required`: nele, use a instalação temporária ou assine o `.xpi` como *unlisted* na Mozilla (`npx web-ext sign --channel unlisted`, chaves grátis em addons.mozilla.org).

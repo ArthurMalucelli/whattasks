@@ -6,8 +6,11 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 
 ## [Não publicado]
 
+## [1.1.0] - 2026-10-15
+
 ### Adicionado
 
+- **Atualização automática no Firefox/Zen**: o `manifest.json` aponta (`update_url`) pro `updates.json` publicado em cada release; instalado o `.xpi` da 1.1.0 ou posterior, as versões seguintes entram sozinhas.
 - Modo **Resumo**: terceiro botão que só resume o trecho (parágrafo de até 150 palavras, Decisões e combinados, Em aberto), mesma coleta e mesmo custo estimado dos outros modos.
 
 ### Alterado
@@ -34,5 +37,6 @@ Primeira versão pública.
 - **Firefox/Zen e Chrome**: `manifest.json` (Firefox/Zen, com sidebar) e `manifest.chrome.json` (Chrome, com side panel), ambos Manifest V3.
 - CI no GitHub Actions (testes, typecheck, `web-ext lint` e build do `.xpi`) e release automático a cada tag `v*`.
 
-[Não publicado]: https://github.com/ArthurMalucelli/whattasks/compare/v1.0.0...HEAD
+[Não publicado]: https://github.com/ArthurMalucelli/whattasks/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/ArthurMalucelli/whattasks/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/ArthurMalucelli/whattasks/releases/tag/v1.0.0

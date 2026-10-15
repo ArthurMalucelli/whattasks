@@ -50,6 +50,25 @@ jobs:
           npm run build:chrome
           (cd dist/chrome && zip -r -FS "../whattasks-chrome-${GITHUB_REF_NAME}.zip" . -x '*.DS_Store')
 
+      - name: Manifesto de atualização (update_url do Firefox)
+        run: |
+          node -e '
+            const fs = require("fs"), crypto = require("crypto");
+            const tag = process.env.GITHUB_REF_NAME, version = tag.replace(/^v/, "");
+            const m = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
+            const gecko = m.browser_specific_settings.gecko;
+            const xpi = `dist/whattasks-${tag}.xpi`;
+            const hash = crypto.createHash("sha256").update(fs.readFileSync(xpi)).digest("hex");
+            const out = { addons: { [gecko.id]: { updates: [{
+              version,
+              update_link: `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/${tag}/whattasks-${tag}.xpi`,
+              update_hash: `sha256:${hash}`,
+              applications: { gecko: { strict_min_version: gecko.strict_min_version } },
+            }] } } };
+            fs.writeFileSync("dist/updates.json", JSON.stringify(out, null, 2) + "\n");
+          '
+          cat dist/updates.json
+
       - name: Notas da versão
         run: |
           version="${GITHUB_REF_NAME#v}"
@@ -72,4 +91,5 @@ jobs:
           files: |
             dist/whattasks-${{ github.ref_name }}.xpi
             dist/whattasks-chrome-${{ github.ref_name }}.zip
+            dist/updates.json
           fail_on_unmatched_files: true

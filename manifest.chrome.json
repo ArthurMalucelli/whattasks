@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WhatTasks",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Seleciona um trecho do WhatsApp Web e transforma em checklist de tasks ou brief pra IA",
   "homepage_url": "https://github.com/ArthurMalucelli/whattasks",
   "permissions": [
